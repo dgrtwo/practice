@@ -76,6 +76,8 @@ check_practices <- function(package_name, metadata_lst = NULL, src_dir = NULL,
 
   ret <- dplyr::data_frame(
     package = package_name,
+    version = metadata$Version,
+    date = metadata$date,
     casing = naming$casing,
     alphanumeric = naming$alphanumeric,
     license = paste(get_license(latest), collapse = "/"),

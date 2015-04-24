@@ -13,6 +13,9 @@ update_CRAN_practices(data_dir = "data", src_dir = NULL, ...)
 
 \item{...}{extra arguments passed on to \code{\link{check_practices}}}
 }
+\value{
+the CRANpractices dataset, invisibly
+}
 \description{
 Check all CRAN practices, and save them to a directory.
 }

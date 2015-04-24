@@ -5,6 +5,6 @@
 \title{Checks on practices of each package in CRAN}
 \format{A tbl_df with one row for each package.}
 \description{
-A list of the metadata for each package.
+A dataset with some practice checks on each package.
 }
 

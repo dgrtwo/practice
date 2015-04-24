@@ -17,6 +17,8 @@ Imports: plyr,
     jsonlite
 Suggests: tidyr,
     testthat,
-    knitr
+    knitr,
+    lubridate,
+    ggplot2
 VignetteBuilder: knitr
 LazyData: true

@@ -19,7 +19,7 @@ The CRANmetadata object, invisible
 }
 \description{
 Download metadata from all CRAN packages, and save it into a directory
-(by default, \code{data}). This is used to create the \code{CRANmetdata}
+(by default, \code{data}). This is used to create the \code{CRANmetadata}
 dataset.
 }
 

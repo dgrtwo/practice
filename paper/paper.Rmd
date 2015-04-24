@@ -11,7 +11,7 @@ author:
     affiliation: Princeton University
     email:  admiral.david@gmail.com
 abstract: >
-  Oliver's abstract for useR goes here.
+  Oliver's abstract for useR conference goes here.
 preamble: >
   % Any extra latex you need in the preamble
 output: rticles::rjournal_article
@@ -29,7 +29,49 @@ library(tidyr)
 library(ggplot2)
 
 data("CRANpractices")
+
+practice_names <- c(
+  casing = "Package Name Case",
+  license = "License",
+  upstream_repo = "Upstream Repository",
+  versioning = "Semantic Versioning",
+  testing = "Tests",
+  roxygen = "Roxygen Documentation",
+  changelog = "Change Log",
+  vignette_format = "Vignette Format",
+  vignette_builder = "Vignette Builder"
+)
 ```
+
+```{r practices_by_year, dependson = "load_data"}
+# compute practices per year, for use in time series plots
+library(lubridate)
+
+practices_by_year <- CRANpractices %>%
+  select(-alphanumeric, -version, -links_to) %>%
+  gather(practice, choice, -package, -date) %>%
+  mutate(date = as.Date(date)) %>%
+  filter(!is.na(date), year(date) > 2000) %>%
+  mutate(year = round_date(date, "year")) %>%
+  count(practice, choice, year) %>%
+  group_by(practice, year) %>%
+  mutate(percent = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(choice = reorder(choice, n, function(x) -mean(x)))
+```
+
+```{r plot_practice, dependson = "practices_by_year"}
+plot_practice <- function(.data) {
+  .data %>%
+    mutate(practice = revalue(practice, practice_names)) %>%
+    ggplot(aes(year, percent, color = choice)) +
+    geom_line() +
+    facet_wrap(~ practice, scales = "free") +
+    labs(color = "") +
+    theme_bw()
+}
+```
+
 
 ## Introduction
 
@@ -38,41 +80,104 @@ Introductory section which may include references in parentheses
 
 ## Best Practices
 
-A list of practices we check, like
+We considered a number of development practices...
 
-* Tests
-* Vignettes
-* roxygen2
+* **Tests** Tests allow... [cite testthat].
+* **Vignettes** Vignettes provide long-form documentation, such as a tutorial. Developers have the choice of several vignette builders, of which the most popular are the built-in \pkg{Sweave} and the \pkg{knitr} package. The \pkg{knitr} package also offers a choice of format, between LaTeX and R Markdown.
+* **roxygen documentation**: \pkg{roxygen}, and more recently \pkg{roxygen2}, make it easy to...
 
 ## Practices in CRAN
 
 Some figures and analyses, like Figure \ref{fig:CRAN_vignettes}.
 
-```{r caption_calculations, dependson = "load_data"}
-use_vignettes <- sum(CRANpractices$vignette_format != "None")
-use_vignettes_percent <- 100 * use_vignettes / nrow(CRANpractices)
-```
-
 \begin{figure}
-```{r vignette_figure, dependson = "load_data"}
-vignette_count <- CRANpractices %>%
-  count(vignette_format, vignette_builder) %>%
-  ungroup() %>%
-  gather(metric, choice, -n) %>%
-  mutate(metric = revalue(metric, c(vignette_format = "Vignette Format",
-                                    vignette_builder = "Vignette Builder"))) %>%
-  filter(choice != "None") %>%
-  mutate(choice = reorder(choice, n, function(x) -mean(x)))
+```{r practices_overview, dependson = "load_data", fig.height = 15, fig.width = 12, out.height = "6.75in", out.width = "5.4in"}
+num_choices <- 15
 
-ggplot(vignette_count, aes(choice, n)) +
+freq <- CRANpractices %>%
+  select(-links_to, -alphanumeric, -version, -date) %>%
+  gather(practice, choice, -package) %>%
+  count(practice, choice) %>%
+  filter(choice != "NA") %>%
+  group_by(practice) %>%
+  top_n(num_choices, n) %>%
+  ungroup() %>%
+  mutate(practice = revalue(practice, practice_names),
+         choice = reorder(choice, n, function(x) -mean(x)))
+
+ggplot(freq, aes(choice, n)) +
   geom_bar(stat = "identity") +
-  facet_wrap(~ metric, scale = "free", ncol = 2) +
+  facet_wrap(~ practice, scales = "free") +
   xlab("Choice") +
   ylab("Number of packages") +
-  theme_bw(base_size = 10) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme_bw(base_size = 15) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, face = "bold"))
 ```
-\caption{Distribution of the choice of vignette builder and format, among the `r round(use_vignettes_percent, 1)`\% of CRAN packages that use vignettes. \label{fig:CRAN_vignettes}}
+
+```{r num_licenses, dependson = "load_data"}
+num_licenses <- length(unique(CRANpractices$license))
+```
+\caption{Overview of software development practices on CRAN. Note that only the first `r num_choices` choices of license (out of `r num_licenses` used in CRAN) are shown. \label{fig:practices_overview}}
 \end{figure}
+
+### Vignettes
+
+```{r vignette_calculations, dependson = "load_data"}
+total_packages <- nrow(CRANpractices)
+use_vignettes <- sum(CRANpractices$vignette_format != "None")
+use_vignettes_percent <- 100 * use_vignettes / total_packages
+```
+
+This section will discuss vignettes.
+
+* Only `r use_vignettes` out of `r total_packages` (`r round(use_vignettes_percent, 1)`) packages currently provide any vignettes.
+* Figure \ref{fig:vignettes_time} shows the use of vignettes over time. From 2009 onward, vignettes were infrequently found in CRAN, making up less than 5\% of packages. In 2014, their use grew sharply to about 20\%. Since their inception, knitr and R markdown have each grown in popularity as tools for vignette development, though Sweave and LaTeX are still more common overall.
+
+\begin{figure}
+```{r vignettes_over_time, dependson = "plot_practice", fig.height = 5, fig.width = 10, out.width = "6in", out.height = "3in"}
+g1 <- practices_by_year %>%
+  filter(practice == "vignette_format", choice != "None") %>%
+  plot_practice()
+
+g2 <- practices_by_year %>%
+  filter(practice == "vignette_builder", choice != "None") %>%
+  plot_practice()
+
+library(gridExtra)
+print(arrangeGrob(g1, g2, nrow = 1))
+```
+\caption{Use of particular vignette formats over time.\label{fig:vignettes_time}}
+\end{figure}
+
+### Testing
+
+* Most packages don't have tests
+* Tests over time (graph)
+* Some things that will require new data:
+  * Of those that have "Other", what do those tests look like?
+  * How many tests do testthat and RUnits have?
+
+### Other practices
+
+\begin{figure}
+```{r other_practices_time, dependson = "plot_practice"}
+practices_by_year %>%
+  filter(practice %in% c("upstream_repo", "versioning", "changelog", "roxygen"),
+         !(choice %in% c("FALSE", "None/Other", "Email")),
+         !is.na(choice)) %>%
+  plot_practice()
+```
+\caption{Use of semantic versioning etc over time. \label{fig:other_practices_time}}
+\end{figure}
+
+* Go over advantages and history of
+  * Semantic versioning
+  * Upstream repository
+  * Change log
+* Figure \ref{fig:other_practices_time}, practices are becoming more common. GitHub in particular.
+
+### Conclusion
+
+* Most packages in CRAN don't take advantage of the newest methods and practices in package development. However, that proportion is rapidly increasing in packages published or updated in the last two years.
 
 \bibliography{RJreferences}
